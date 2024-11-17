@@ -1,8 +1,36 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import database from "../../database/FirebaseConfig";
+import { ref, onValue } from "firebase/database";
 import "./ProfilePage.css";
 
 const ProfilePage = () => {
   const [profiles, setProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Tạo tham chiếu đến vị trí "profiles" trong Firebase Realtime Database
+    const profilesRef = ref(database, "profiles");
+
+    // Lấy dữ liệu từ Firebase khi có thay đổi
+    onValue(profilesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Chuyển đổi dữ liệu từ Firebase thành mảng
+        const loadedProfiles = Object.keys(data).map((key) => ({
+          id: key,
+          ...data[key],
+        }));
+        setProfiles(loadedProfiles);
+      } else {
+        setProfiles([]);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) {
+    return <p>Đang tải hồ sơ...</p>;
+  }
 
   return (
     <div className="profile-container">
@@ -12,10 +40,13 @@ const ProfilePage = () => {
           {profiles.map((profile) => (
             <div key={profile.id} className="profile-card">
               <p>
-                <strong>Giống:</strong> {profile.race}
+                <strong>Ngày, giờ khám:</strong> {profile.timestamp}
               </p>
               <p>
-                <strong>Giới tính:</strong> {profile.sex}
+                <strong>Giống:</strong> {profile.race == 1 ? "To" : "Nhỏ"}
+              </p>
+              <p>
+                <strong>Giới tính:</strong> {profile.sex == 0 ? "Đực" : "Cái"}
               </p>
               <p>
                 <strong>Tuổi:</strong> {profile.age}
@@ -28,6 +59,9 @@ const ProfilePage = () => {
               </p>
               <p>
                 <strong>Nhịp thở:</strong> {profile.respiratoryRate}
+              </p>
+              <p>
+                <strong>Chẩn đoán:</strong> {profile.diagnosis}
               </p>
             </div>
           ))}

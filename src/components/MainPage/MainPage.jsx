@@ -1,5 +1,8 @@
 import { useState } from "react";
+import axios from "axios";
 import "./MainPage.css";
+import { ref, set } from "firebase/database";
+import database from "../../database/FirebaseConfig";
 
 const MainPage = () => {
   const [temperature, setTemperature] = useState("");
@@ -16,16 +19,63 @@ const MainPage = () => {
     console.log("Fetching data from ESP8266...");
   };
 
-  const handleDetect = () => {
-    // TODO: Implement disease detection logic
-    const hasDiseaseRisk = Math.random() > 0.5; // Dummy logic
-    setDiagnosis(hasDiseaseRisk ? "Có nguy cơ bệnh" : "Khỏe mạnh");
-    setShowAlert(true);
+  const handleDetect = async () => {
+    // Chuẩn bị dữ liệu để gửi
+    const inputData = {
+      race: race === "to" ? 1 : 2,
+      sex: sex === "duc" ? 0 : 1,
+      age: parseInt(age, 10),
+      temperature: parseFloat(temperature),
+      heartRate: parseInt(heartRate, 10),
+      respiratoryRate: parseInt(respiratoryRate, 10),
+    };
+
+    try {
+      // Gửi yêu cầu POST đến backend bằng axios
+      const response = await axios.post(
+        "http://localhost:5000/predict",
+        inputData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Nhận kết quả từ backend
+      const result = await response.data;
+      //console.log(result);
+      setDiagnosis(result.diagnosis === 1 ? "Có nguy cơ bệnh" : "Khỏe mạnh");
+      setShowAlert(true);
+    } catch (error) {
+      console.error("Error fetching prediction:", error);
+    }
   };
 
   const handleSaveProfile = () => {
-    // TODO: Implement Firebase saving logic
-    console.log("Saving to Firebase...");
+    const profileData = {
+      race: race === "to" ? 1 : 2,
+      sex: sex === "duc" ? 0 : 1,
+      age: parseInt(age, 10),
+      temperature: parseFloat(temperature),
+      heartRate: parseInt(heartRate, 10),
+      respiratoryRate: parseInt(respiratoryRate, 10),
+      diagnosis: diagnosis,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Lưu dữ liệu vào Firebase
+    set(ref(database, "profiles/" + Date.now()), profileData)
+      .then(() => {
+        console.log("Profile saved successfully!");
+        setShowAlert(false);
+      })
+      .catch((error) => {
+        console.error("Error saving profile:", error);
+      });
+  };
+
+  const exitSaveProfile = () => {
     setShowAlert(false);
   };
 
@@ -112,6 +162,9 @@ const MainPage = () => {
             <div className="modal-footer">
               <button onClick={handleSaveProfile} className="button">
                 Lưu hồ sơ
+              </button>
+              <button onClick={exitSaveProfile} className="exitBtn">
+                Thoát
               </button>
             </div>
           </div>
